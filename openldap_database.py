@@ -20,7 +20,7 @@ try:
 except ImportError:
     HAS_LDAP = False
 
-import traceback
+import traceback, os.path
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
@@ -67,6 +67,16 @@ class OpenldapDatabase(object):
             changed = False
 
         return changed
+
+    def _get_config_path(self):
+        """Return a configuration LDIF path for a database."""
+
+        slapdd_path = '/'.split('/etc/openldap/slapd.d')
+        relative_path = ','.split(self._dn)
+        relative_path.reverse()
+        relative_path[1] = relative_path[1] + '.ldif'
+
+        return os.path.join(slapdd_path + relative_path)
 
 def main():
     module = AnsibleModule(
