@@ -29,7 +29,18 @@ class OpenldapDatabase(object):
     def __init__(self, module):
         self._module = module
         self._connection = self._connect()
-        self._dn = self._get_dn()
+        self._dn = None
+        self._attrs = {}
+
+        result = self._connection.search_s(
+            base = 'cn=config',
+            scope = ldap.SCOPE_ONELEVEL,
+            filterstr = '(olcSuffix=%s)' % self._module.params['suffix']
+        )
+        for dn, attrs in result:
+            self._dn = dn
+            self._attrs = attrs
+            break
 
     def _connect(self):
         """Connect to slapd thru a socket using EXTERNAL auth."""
@@ -46,25 +57,16 @@ class OpenldapDatabase(object):
 
         return connection
 
-    def _get_dn(self):
-        dn = None
-        result = self._connection.search_s(
-            base = 'cn=config',
-            scope = ldap.SCOPE_ONELEVEL,
-            filterstr = '(olcSuffix=%s)' % self._module.params['suffix'],
-            attrlist = ['dn'],
-            attrsonly = True
-        )
-        for dn, ignored in result:
-            break
-
-        return dn
-
     def create(self):
         pass
 
     def delete(self):
-        pass
+        if self._dn:
+            changed = True
+        else:
+            changed = False
+
+        return changed
 
 def main():
     module = AnsibleModule(
