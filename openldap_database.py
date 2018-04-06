@@ -63,11 +63,42 @@ class OpenldapDatabase(object):
     def delete(self):
         """Delete a database and its files."""
 
+        def get_config_path():
+            """Return a valid configuration LDIF path for a database."""
+
+            relative_path = self._dn.split(',')
+            relative_path.reverse()
+            relative_path[1] = relative_path[1] + '.ldif'
+
+            config_path = os.path.join('/etc/openldap/slapd.d', *relative_path)
+
+            if not os.path.exists(config_path):
+                config_path = None
+
+            return config_path
+
+        def list_db_files():
+            """List regular files in DB directory."""
+
+            database_dir = self._attrs['olcDbDirectory'][0]
+            entries = map(
+                lambda path: os.path.join(database_dir, path),
+                os.listdir(database_dir)
+            )
+            # select only regular files
+            file_names = filter(
+                lambda path: stat.S_ISREG(os.stat(path).st_mode),
+                entries
+            )
+
+            return file_names
+
+
         changed = False
 
         if self._dn:
-            config_path = self._get_config_path()
-            file_names = self._list_db_files()
+            config_path = get_config_path()
+            file_names = list_db_files()
             changed = bool(config_path or file_names)
             if not self._module.check_mode:
                 if config_path:
@@ -77,36 +108,6 @@ class OpenldapDatabase(object):
                     os.unlink(path)
 
         return changed
-
-    def _get_config_path(self):
-        """Return a valid configuration LDIF path for a database."""
-
-        relative_path = self._dn.split(',')
-        relative_path.reverse()
-        relative_path[1] = relative_path[1] + '.ldif'
-
-        config_path = os.path.join('/etc/openldap/slapd.d', *relative_path)
-
-        if not os.path.exists(config_path):
-            config_path = None
-
-        return config_path
-
-    def _list_db_files(self):
-        """List regular files in DB directory."""
-
-        database_dir = self._attrs['olcDbDirectory'][0]
-        entries = map(
-            lambda path: os.path.join(database_dir, path),
-            os.listdir(database_dir)
-        )
-        # select only regular files
-        file_names = filter(
-            lambda path: stat.S_ISREG(os.stat(path).st_mode),
-            entries
-        )
-
-        return file_names
 
 def main():
     module = AnsibleModule(
