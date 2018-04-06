@@ -29,6 +29,7 @@ class OpenldapDatabase(object):
     def __init__(self, module):
         self._module = module
         self._connection = self._connect()
+        self._dn = self._get_dn()
 
     def _connect(self):
         """Connect to slapd thru a socket using EXTERNAL auth."""
@@ -44,6 +45,20 @@ class OpenldapDatabase(object):
             )
 
         return connection
+
+    def _get_dn(self):
+        dn = None
+        result = self._connection.search_s(
+            base = 'cn=config',
+            scope = ldap.SCOPE_ONELEVEL,
+            filterstr = '(olcSuffix=%s)' % self._module.params['suffix'],
+            attrlist = ['dn'],
+            attrsonly = True
+        )
+        for dn, ignored in result:
+            break
+
+        return dn
 
     def create(self):
         pass
