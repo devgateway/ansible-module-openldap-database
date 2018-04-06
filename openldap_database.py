@@ -28,6 +28,22 @@ from ansible.module_utils._text import to_native
 class OpenldapDatabase(object):
     def __init__(self, module):
         self._module = module
+        self._connection = self._connect()
+
+    def _connect(self):
+        """Connect to slapd thru a socket using EXTERNAL auth."""
+
+        connection = ldap.initialize('ldapi:///')
+        try:
+            connection.sasl_interactive_bind_s('', ldap.sasl.external())
+        except ldap.LDAPError as e:
+            self._module.fail_json(
+                msg = 'Can\'t bind to local socket',
+                details = to_native(e),
+                exception = traceback.format_exc()
+            )
+
+        return connection
 
     def create(self):
         pass
