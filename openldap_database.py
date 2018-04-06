@@ -69,6 +69,12 @@ class OpenldapDatabase(object):
             config_path = self._get_config_path()
             file_names = self._list_db_files()
             changed = bool(config_path or file_names)
+            if not self._module.check_mode:
+                if config_path:
+                    os.unlink(config_path)
+
+                for path in file_names:
+                    os.unlink(path)
 
         return changed
 
@@ -89,16 +95,16 @@ class OpenldapDatabase(object):
     def _list_db_files(self):
         """List regular files in DB directory."""
 
-        def only_files(base_name):
-            """Select only regular files."""
-
-            path = os.path.join(database_dir, base_name)
-            mode = os.stat(path).st_mode
-            return stat.S_ISREG(mode)
-
         database_dir = self._attrs['olcDbDirectory'][0]
-        entries = os.listdir(database_dir)
-        file_names = filter(only_files, entries)
+        entries = map(
+            lambda path: os.path.join(database_dir, path),
+            os.listdir(database_dir)
+        )
+        # select only regular files
+        file_names = filter(
+            lambda path: stat.S_ISREG(os.stat(path).st_mode),
+            entries
+        )
 
         return file_names
 
@@ -117,7 +123,8 @@ def main():
             'state': dict(default = 'present', choices = ['present', 'absent']),
             'suffix': dict(required = True),
             'updateref': dict(default = None)
-        }
+        },
+        supports_check_mode = True
     )
 
     if not HAS_LDAP:
