@@ -20,7 +20,21 @@ try:
 except ImportError:
     HAS_LDAP = False
 
+import traceback
+
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils._text import to_native
+
+class OpenldapDatabase(object):
+    def __init__(self, module):
+        self._module = module
+
+    def create(self):
+        pass
+
+    def delete(self):
+        pass
+
 def main():
     module = AnsibleModule(
         argument_spec = {
@@ -33,6 +47,7 @@ def main():
             'read_only': dict(default = False, type = 'bool'),
             'root_dn': dict(),
             'root_pw': dict(),
+            'state': dict(default = 'present', choices = ['present', 'absent']),
             'suffix': dict(required = True),
             'updateref': dict(default = None)
         }
@@ -40,6 +55,22 @@ def main():
 
     if not HAS_LDAP:
         module.fail_json(msg = "Missing required 'ldap' module (install python-ldap package).")
+
+    db = OpenldapDatabase(module)
+
+    try:
+        if module.params['state'] == 'absent':
+            changed = db.delete()
+        else:
+            changed = db.create()
+    except Exception as e:
+        module.fail_json(
+            msg = 'Database operation failed',
+            details = to_native(e)
+            exception = traceback.format_exc()
+        )
+
+    module.exit_json(changed = changed)
 
 if __name__ == '__main__':
     main()
