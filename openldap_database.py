@@ -66,7 +66,7 @@ def main():
     except Exception as e:
         module.fail_json(
             msg = 'Database operation failed',
-            details = to_native(e)
+            details = to_native(e),
             exception = traceback.format_exc()
         )
 
