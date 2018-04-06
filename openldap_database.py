@@ -20,7 +20,7 @@ try:
 except ImportError:
     HAS_LDAP = False
 
-import traceback, os.path
+import traceback, os, stat
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
@@ -61,22 +61,46 @@ class OpenldapDatabase(object):
         pass
 
     def delete(self):
+        """Delete a database and its files."""
+
+        changed = False
+
         if self._dn:
-            changed = True
-        else:
-            changed = False
+            config_path = self._get_config_path()
+            file_names = self._list_db_files()
+            changed = bool(config_path or file_names)
 
         return changed
 
     def _get_config_path(self):
-        """Return a configuration LDIF path for a database."""
+        """Return a valid configuration LDIF path for a database."""
 
-        slapdd_path = '/'.split('/etc/openldap/slapd.d')
-        relative_path = ','.split(self._dn)
+        relative_path = self._dn.split(',')
         relative_path.reverse()
         relative_path[1] = relative_path[1] + '.ldif'
 
-        return os.path.join(slapdd_path + relative_path)
+        config_path = os.path.join('/etc/openldap/slapd.d', *relative_path)
+
+        if not os.path.exists(config_path):
+            config_path = None
+
+        return config_path
+
+    def _list_db_files(self):
+        """List regular files in DB directory."""
+
+        def only_files(base_name):
+            """Select only regular files."""
+
+            path = os.path.join(database_dir, base_name)
+            mode = os.stat(path).st_mode
+            return stat.S_ISREG(mode)
+
+        database_dir = self._attrs['olcDbDirectory'][0]
+        entries = os.listdir(database_dir)
+        file_names = filter(only_files, entries)
+
+        return file_names
 
 def main():
     module = AnsibleModule(
