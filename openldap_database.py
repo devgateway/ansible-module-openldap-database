@@ -41,13 +41,13 @@ class DatabaseEntry(object):
         # add indexes if provided
         indexes = self._get_indexes()
         if indexes:
-            entry[self.__class__.ATTR_DBINDEX] = indexes
+            self.entry[self.__class__.ATTR_DBINDEX] = indexes
 
         # add limits if provided
 
         limits = self.__class__._get_limits()
         if limits:
-            entry[self.__class__.ATTR_LIMITS] = limits
+            self.entry[self.__class__.ATTR_LIMITS] = limits
 
     def _create_entry(self):
         backend = self._params['backend'].lower()
