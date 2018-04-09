@@ -67,17 +67,17 @@ class DatabaseEntry(object):
         # copy attribute values if provided
 
         verbatim_attrs = [
-            'database_config',
-            'directory',
-            'read_only',
-            'root_dn',
-            'root_pw',
-            'updateref'
+            'database_config': self.__class__.ATTR_DBCONFIG,
+            'directory': self.__class__.ATTR_DBDIR,
+            'read_only': self.__class__.ATTR_READONLY,
+            'root_dn': self.__class__.ATTR_ROOTDN,
+            'root_pw': self.__class__.ATTR_ROOTPW,
+            'updateref': self.__class__.ATTR_UPDATEREF
         ]
 
-        for attr in verbatim_attrs:
-            if type(self._params[attr]) is bool or self._params[attr]:
-                value = self._params[attr]
+        for param, attr in verbatim_attrs.iteritems():
+            if type(self._params[param]) is bool or self._params[param]:
+                value = self._params[param]
                 if type(value) is dict:
                     self.entry[attr] = value
                 else:
