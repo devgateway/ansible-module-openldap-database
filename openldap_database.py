@@ -35,7 +35,7 @@ class OpenldapDatabase(object):
         result = self._connection.search_s(
             base = 'cn=config',
             scope = ldap.SCOPE_ONELEVEL,
-            filterstr = '(olcSuffix=%s)' % self._module.params['suffix']
+            filterstr = '(olcSuffix={})'.format(self._module.params['suffix'])
         )
         for dn, attrs in result:
             self._dn = dn
@@ -60,7 +60,49 @@ class OpenldapDatabase(object):
     def create(self):
         """Create a database from scratch."""
 
-        pass
+        backend = self._module.params['backend'].lower()
+        attr_db = 'olcDatabase'
+        dn = '{}={},cn=config'.format(attr_db, backend)
+        db_class = 'olc{}Config'.format(backend.capitalize())
+
+        # fill in required attributes
+
+        entry = {
+            'dn': [dn],
+            'objectClass': [db_class],
+            attr_db: backend,
+            'olcSuffix': self._module.params['suffix']
+        }
+
+        # copy attribute values if provided
+
+        verbatim_attrs = [
+            'database_config',
+            'directory',
+            'read_only',
+            'root_dn',
+            'root_pw',
+            'updateref'
+        ]
+
+        for attr in verbatim_attrs:
+            if attr in self._module.params:
+                value = self._module.params[attr]
+                if type(value) is dict:
+                    entry[attr] = value
+                else:
+                    entry[attr] = [value]
+
+        # add indexes if provided
+
+        indexes = map(
+            lambda index_tuple: ' '.join(index_tuple),
+            self._module.params['indexes']
+        )
+        if indexes:
+            entry['olcDbIndex'] = indexes
+
+        modlist = ldap.modlist.addModlist(dn, entry)
 
     def update(self):
         """Update an existing database."""
