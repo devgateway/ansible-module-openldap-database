@@ -60,7 +60,26 @@ class OpenldapDatabase(object):
     def create(self):
         """Create a database from scratch."""
 
-        backend = self._module.params['backend'].lower()
+        params = self._module.params
+        (dn, entry) = self._create_entry(params)
+        self._apply_verbatim_attrs(entry, params)
+
+        # add indexes if provided
+        indexes = self._get_indexes(params)
+        if indexes:
+            entry['olcDbIndex'] = indexes
+
+        # add limits if provided
+
+        limits = self.__class__._get_limits(params)
+        if limits:
+            entry['olcLimits'] = limits
+
+        modlist = ldap.modlist.addModlist(dn, entry)
+
+    @staticmethod
+    def _create_entry(params):
+        backend = params['backend'].lower()
         attr_db = 'olcDatabase'
         dn = '{}={},cn=config'.format(attr_db, backend)
         db_class = 'olc{}Config'.format(backend.capitalize())
@@ -68,12 +87,15 @@ class OpenldapDatabase(object):
         # fill in required attributes
 
         entry = {
-            'dn': [dn],
             'objectClass': [db_class],
             attr_db: backend,
-            'olcSuffix': self._module.params['suffix']
+            'olcSuffix': params['suffix']
         }
 
+        return (dn, entry)
+
+    @staticmethod
+    def _apply_verbatim_attrs(entry, params):
         # copy attribute values if provided
 
         verbatim_attrs = [
@@ -86,23 +108,44 @@ class OpenldapDatabase(object):
         ]
 
         for attr in verbatim_attrs:
-            if attr in self._module.params:
-                value = self._module.params[attr]
+            if attr in params:
+                value = params[attr]
                 if type(value) is dict:
                     entry[attr] = value
                 else:
                     entry[attr] = [value]
 
-        # add indexes if provided
-
+    @staticmethod
+    def _get_indexes(params):
         indexes = map(
             lambda index_tuple: ' '.join(index_tuple),
-            self._module.params['indexes']
+            params['indexes']
         )
-        if indexes:
-            entry['olcDbIndex'] = indexes
 
-        modlist = ldap.modlist.addModlist(dn, entry)
+        return indexes
+
+    @classmethod
+    def _get_limits(cls, params):
+        def format_limit(limit_dict):
+            for selector, limits in limit_dict.iteritems():
+                limit_elements = map(
+                    lambda elem: '='.join(elem),
+                    limits.iteritems()
+                )
+                return ' '.join([selector] + limit_elements)
+
+        limits = map(format_limit, params['limits'])
+
+        return cls._numbered_list(limits)
+
+    @staticmethod
+    def _numbered_list(lst):
+        numbered = []
+        i = 1
+        for elem in lst:
+            numbered.append('{{{}}}{}'.format(i, elem))
+            i = i + 1
+        return numbered
 
     def update(self):
         """Update an existing database."""
