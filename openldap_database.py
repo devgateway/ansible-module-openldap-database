@@ -75,7 +75,7 @@ class OpenldapDatabase(object):
         if limits:
             entry['olcLimits'] = limits
 
-        modlist = ldap.modlist.addModlist(dn, entry)
+        modlist = ldap.modlist.addModlist(entry)
 
     @staticmethod
     def _create_entry(params):
@@ -88,8 +88,8 @@ class OpenldapDatabase(object):
 
         entry = {
             'objectClass': [db_class],
-            attr_db: backend,
-            'olcSuffix': params['suffix']
+            attr_db: [backend],
+            'olcSuffix': [params['suffix']]
         }
 
         return (dn, entry)
@@ -108,7 +108,7 @@ class OpenldapDatabase(object):
         ]
 
         for attr in verbatim_attrs:
-            if attr in params:
+            if type(params[attr]) is bool or params[attr]:
                 value = params[attr]
                 if type(value) is dict:
                     entry[attr] = value
