@@ -58,6 +58,13 @@ class OpenldapDatabase(object):
         return connection
 
     def create(self):
+        """Create a database from scratch."""
+
+        pass
+
+    def update(self):
+        """Update an existing database."""
+
         pass
 
     def delete(self):
@@ -92,7 +99,6 @@ class OpenldapDatabase(object):
             )
 
             return file_names
-
 
         changed = False
 
@@ -136,6 +142,8 @@ def main():
     try:
         if module.params['state'] == 'absent':
             changed = db.delete()
+        elif self._dn:
+            changed = db.update()
         else:
             changed = db.create()
     except Exception as e:
