@@ -25,6 +25,94 @@ import traceback, os, stat
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 
+class DatabaseEntry(object):
+    ATTR_DATABASE = 'olcDatabase'
+    ATTR_DBINDEX = 'olcDbIndex'
+    ATTR_LIMITS = 'olcLimits'
+    ATTR_SUFFIX = 'olcSuffix'
+    ATTR_DBDIR = 'olcDbDirectory'
+
+    def __init__(self, params):
+        self._params = params
+
+        self._create_entry()
+        self._apply_verbatim_attrs()
+
+        # add indexes if provided
+        indexes = self._get_indexes()
+        if indexes:
+            entry[self.__class__.ATTR_DBINDEX] = indexes
+
+        # add limits if provided
+
+        limits = self.__class__._get_limits()
+        if limits:
+            entry[self.__class__.ATTR_LIMITS] = limits
+
+    def _create_entry(self):
+        backend = self._params['backend'].lower()
+        db_class = 'olc{}Config'.format(backend.capitalize())
+
+        self.dn = '{}={},cn=config'.format(self.__class__.ATTR_DATABASE, backend)
+
+        # fill in required attributes
+
+        self.entry = {
+            'objectClass': [db_class],
+            self.__class__.ATTR_DATABASE: [backend],
+            self.__class__.ATTR_SUFFIX: [self._params['suffix']]
+        }
+
+    def _apply_verbatim_attrs(self):
+        # copy attribute values if provided
+
+        verbatim_attrs = [
+            'database_config',
+            'directory',
+            'read_only',
+            'root_dn',
+            'root_pw',
+            'updateref'
+        ]
+
+        for attr in verbatim_attrs:
+            if type(self._params[attr]) is bool or self._params[attr]:
+                value = self._params[attr]
+                if type(value) is dict:
+                    self.entry[attr] = value
+                else:
+                    self.entry[attr] = [value]
+
+    def _get_indexes(self):
+        indexes = map(
+            lambda index_tuple: ' '.join(index_tuple),
+            self._params['indexes']
+        )
+
+        return indexes
+
+    def _get_limits(self):
+        def format_limit(limit_dict):
+            for selector, limits in limit_dict.iteritems():
+                limit_elements = map(
+                    lambda elem: '='.join(elem),
+                    limits.iteritems()
+                )
+                return ' '.join([selector] + limit_elements)
+
+        limits = map(format_limit, self._params['limits'])
+
+        return self.__class__._numbered_list(limits)
+
+    @staticmethod
+    def _numbered_list(lst):
+        numbered = []
+        i = 1
+        for elem in lst:
+            numbered.append('{{{}}}{}'.format(i, elem))
+            i = i + 1
+        return numbered
+
 class OpenldapDatabase(object):
     def __init__(self, module):
         self._module = module
@@ -35,7 +123,10 @@ class OpenldapDatabase(object):
         result = self._connection.search_s(
             base = 'cn=config',
             scope = ldap.SCOPE_ONELEVEL,
-            filterstr = '(olcSuffix={})'.format(self._module.params['suffix'])
+            filterstr = '({}={})'.format(
+                self.__class__.ATTR_SUFFIX,
+                self._module.params['suffix']
+            )
         )
         for dn, attrs in result:
             self._dn = dn
@@ -60,92 +151,9 @@ class OpenldapDatabase(object):
     def create(self):
         """Create a database from scratch."""
 
-        params = self._module.params
-        (dn, entry) = self._create_entry(params)
-        self._apply_verbatim_attrs(entry, params)
+        dbe = DatabaseEntry(self._module.params)
 
-        # add indexes if provided
-        indexes = self._get_indexes(params)
-        if indexes:
-            entry['olcDbIndex'] = indexes
-
-        # add limits if provided
-
-        limits = self.__class__._get_limits(params)
-        if limits:
-            entry['olcLimits'] = limits
-
-        modlist = ldap.modlist.addModlist(entry)
-
-    @staticmethod
-    def _create_entry(params):
-        backend = params['backend'].lower()
-        attr_db = 'olcDatabase'
-        dn = '{}={},cn=config'.format(attr_db, backend)
-        db_class = 'olc{}Config'.format(backend.capitalize())
-
-        # fill in required attributes
-
-        entry = {
-            'objectClass': [db_class],
-            attr_db: [backend],
-            'olcSuffix': [params['suffix']]
-        }
-
-        return (dn, entry)
-
-    @staticmethod
-    def _apply_verbatim_attrs(entry, params):
-        # copy attribute values if provided
-
-        verbatim_attrs = [
-            'database_config',
-            'directory',
-            'read_only',
-            'root_dn',
-            'root_pw',
-            'updateref'
-        ]
-
-        for attr in verbatim_attrs:
-            if type(params[attr]) is bool or params[attr]:
-                value = params[attr]
-                if type(value) is dict:
-                    entry[attr] = value
-                else:
-                    entry[attr] = [value]
-
-    @staticmethod
-    def _get_indexes(params):
-        indexes = map(
-            lambda index_tuple: ' '.join(index_tuple),
-            params['indexes']
-        )
-
-        return indexes
-
-    @classmethod
-    def _get_limits(cls, params):
-        def format_limit(limit_dict):
-            for selector, limits in limit_dict.iteritems():
-                limit_elements = map(
-                    lambda elem: '='.join(elem),
-                    limits.iteritems()
-                )
-                return ' '.join([selector] + limit_elements)
-
-        limits = map(format_limit, params['limits'])
-
-        return cls._numbered_list(limits)
-
-    @staticmethod
-    def _numbered_list(lst):
-        numbered = []
-        i = 1
-        for elem in lst:
-            numbered.append('{{{}}}{}'.format(i, elem))
-            i = i + 1
-        return numbered
+        modlist = ldap.modlist.addModlist(dbe.entry)
 
     def update(self):
         """Update an existing database."""
@@ -162,7 +170,7 @@ class OpenldapDatabase(object):
             relative_path.reverse()
             relative_path[1] = relative_path[1] + '.ldif'
 
-            config_path = os.path.join('/etc/openldap/slapd.d', *relative_path)
+            config_path = os.path.join('/etc/openldap/slapd.d', *relative_path) # TODO
 
             if not os.path.exists(config_path):
                 config_path = None
@@ -172,7 +180,7 @@ class OpenldapDatabase(object):
         def list_db_files():
             """List regular files in DB directory."""
 
-            database_dir = self._attrs['olcDbDirectory'][0]
+            database_dir = self._attrs[DatabaseEntry.ATTR_DBDIR][0]
             entries = map(
                 lambda path: os.path.join(database_dir, path),
                 os.listdir(database_dir)
