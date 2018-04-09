@@ -203,12 +203,12 @@ class OpenldapDatabase(object):
 def main():
     module = AnsibleModule(
         argument_spec = {
-            'access': dict(default = {}, type = 'dict'),
+            'access': dict(default = [], type = 'list'),
             'backend': dict(default = 'mdb', choices = ['bdb', 'hdb', 'mdb']),
             'database_config': dict(default = {}, type = 'dict'),
             'directory': dict(),
             'indexes': dict(default = {}, type = 'dict'),
-            'limits': dict(default = {}, type = 'dict'),
+            'limits': dict(default = [], type = 'list'),
             'read_only': dict(default = False, type = 'bool'),
             'root_dn': dict(),
             'root_pw': dict(),
@@ -227,7 +227,7 @@ def main():
     try:
         if module.params['state'] == 'absent':
             changed = db.delete()
-        elif self._dn:
+        elif db._dn:
             changed = db.update()
         else:
             changed = db.create()
