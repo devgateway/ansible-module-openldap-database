@@ -26,22 +26,19 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 
 class DatabaseEntry(object):
+    ATTR_SUFFIX = 'olcSuffix'
+    ATTR_DBDIR = 'olcDbDirectory'
+
     _map = {
-        'directory': 'olcDbDirectory',
+        'directory': ATTR_DBDIR,
         'read_only': 'olcReadOnly',
         'root_dn': 'olcRootDN',
         'root_pw': 'olcRootPW',
-        'suffix': 'olcSuffix',
+        'suffix': ATTR_SUFFIX,
         'updateref': 'olcUpdateref'
     }
 
     _hooks = ['access', 'backend', 'config', 'indexes', 'limits']
-
-    ATTR_DATABASE = 'olcDatabase'
-    ATTR_DBINDEX = 'olcDbIndex'
-    ATTR_LIMITS = 'olcLimits'
-    ATTR_SUFFIX = 'olcSuffix'
-    ATTR_DBDIR = 'olcDbDirectory'
 
     def __init__(self, params):
         object.__setattr__(self, 'attrs', {})
