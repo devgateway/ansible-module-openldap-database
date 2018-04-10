@@ -26,6 +26,18 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 
 class DatabaseEntry(object):
+    _map = {
+        'access': 'olcAccess',
+        'directory': 'olcDbDirectory',
+        'read_only': 'olcReadOnly',
+        'root_dn': 'olcRootDN',
+        'root_pw': 'olcRootPW',
+        'suffix': 'olcSuffix',
+        'updateref': 'olcUpdateref'
+    }
+
+    _hooks = ['backend', 'config', 'indexes', 'limits']
+
     ATTR_DATABASE = 'olcDatabase'
     ATTR_DBINDEX = 'olcDbIndex'
     ATTR_LIMITS = 'olcLimits'
@@ -33,22 +45,26 @@ class DatabaseEntry(object):
     ATTR_DBDIR = 'olcDbDirectory'
 
     def __init__(self, params):
-        self._params = params
+        self.attrs = {}
+        self.dn = None
 
-        self._create_entry()
-        self._apply_verbatim_attrs()
+    def __setattr__(self, name, value):
+        if not value and type(value) is not bool:
+            return
 
-        # add indexes if provided
-        indexes = self._get_indexes()
-        if indexes:
-            self.entry[self.__class__.ATTR_DBINDEX] = indexes
+        if name in self.__class__._map:
+            attr_name = self.__class__._map[name]
+            if type(value) is not list:
+                value = [value]
+            self.attrs[attr_name] = value
+        elif name in self.__class__._hooks:
+            method = getattr(self, 'set_' + name)
+            method(value)
+        else:
+            raise AttributeError('Unknown property ' + name)
 
-        # add limits if provided
-
-        limits = self.__class__._get_limits()
-        if limits:
-            self.entry[self.__class__.ATTR_LIMITS] = limits
-
+    def set_backend(self, value):
+        self.attrs
     def _create_entry(self):
         backend = self._params['backend'].lower()
         db_class = 'olc{}Config'.format(backend.capitalize())
@@ -67,12 +83,6 @@ class DatabaseEntry(object):
         # copy attribute values if provided
 
         verbatim_attrs = [
-            'database_config': self.__class__.ATTR_DBCONFIG,
-            'directory': self.__class__.ATTR_DBDIR,
-            'read_only': self.__class__.ATTR_READONLY,
-            'root_dn': self.__class__.ATTR_ROOTDN,
-            'root_pw': self.__class__.ATTR_ROOTPW,
-            'updateref': self.__class__.ATTR_UPDATEREF
         ]
 
         for param, attr in verbatim_attrs.iteritems():
@@ -213,7 +223,7 @@ def main():
         argument_spec = {
             'access': dict(default = [], type = 'list'),
             'backend': dict(default = 'mdb', choices = ['bdb', 'hdb', 'mdb']),
-            'database_config': dict(default = {}, type = 'dict'),
+            'config': dict(default = {}, type = 'dict'),
             'directory': dict(),
             'indexes': dict(default = {}, type = 'dict'),
             'limits': dict(default = [], type = 'list'),
