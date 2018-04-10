@@ -164,6 +164,11 @@ class OpenldapDatabase(object):
         entry = DatabaseEntry(self._module.params)
         modlist = ldap.modlist.addModlist(entry.attrs)
 
+        if not self._module.check_mode:
+            self._connection.add_s(entry.dn, modlist)
+
+        return True
+
     def update(self):
         """Update an existing database."""
 
