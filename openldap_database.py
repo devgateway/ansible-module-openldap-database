@@ -158,9 +158,8 @@ class OpenldapDatabase(object):
     def create(self):
         """Create a database from scratch."""
 
-        dbe = DatabaseEntry(self._module.params)
-
-        modlist = ldap.modlist.addModlist(dbe.entry)
+        entry = DatabaseEntry(self._module.params)
+        modlist = ldap.modlist.addModlist(entry.attrs)
 
     def update(self):
         """Update an existing database."""
