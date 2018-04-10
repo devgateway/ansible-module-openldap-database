@@ -85,18 +85,18 @@ class DatabaseEntry(object):
         if indexes:
             self.attrs['olcDbIndex'] = indexes
 
-    def _set_limits(self):
+    def _set_limits(self, limits):
         def format_limit(limit_dict):
             for selector, limits in limit_dict.iteritems():
-                limit_elements = map(
+                limit_keyvals = map(
                     lambda elem: '='.join(elem),
                     limits.iteritems()
                 )
-                return ' '.join([selector] + limit_elements)
+                return ' '.join([selector] + limit_keyvals)
 
-        limits = map(format_limit, self._params['limits'])
-
-        return self.__class__._numbered_list(limits)
+        if limits:
+            limit_strings = map(format_limit, limits)
+            self.attrs['olcLimits'] = self._numbered_list(limit_strings)
 
     @staticmethod
     def _numbered_list(lst):
@@ -105,6 +105,7 @@ class DatabaseEntry(object):
         for elem in lst:
             numbered.append('{{{}}}{}'.format(i, elem))
             i = i + 1
+
         return numbered
 
 class OpenldapDatabase(object):
