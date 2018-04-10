@@ -44,8 +44,10 @@ class DatabaseEntry(object):
     ATTR_DBDIR = 'olcDbDirectory'
 
     def __init__(self, params):
-        self.attrs = {}
-        self.dn = None
+        object.__setattr__(self, 'attrs', {})
+
+        for name, value in params.iteritems():
+            self.__setattr__(name, value)
 
     def __setattr__(self, name, value):
         if not value and type(value) is not bool:
@@ -59,8 +61,10 @@ class DatabaseEntry(object):
         elif name in self.__class__._hooks:
             method = getattr(self, '_set_' + name)
             method(value)
+        elif name == 'state':
+            pass
         else:
-            raise AttributeError('Unknown property ' + name)
+            raise AttributeError('Unknown property: {}'.format(name))
 
     def _set_access(self, access):
         access_list = []
@@ -131,7 +135,7 @@ class OpenldapDatabase(object):
             base = 'cn=config',
             scope = ldap.SCOPE_ONELEVEL,
             filterstr = '({}={})'.format(
-                self.__class__.ATTR_SUFFIX,
+                DatabaseEntry.ATTR_SUFFIX,
                 self._module.params['suffix']
             )
         )
