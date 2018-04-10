@@ -20,7 +20,7 @@ try:
 except ImportError:
     HAS_LDAP = False
 
-import traceback, os, stat
+import traceback, os, stat, copy
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
@@ -120,7 +120,7 @@ class DatabaseEntry(object):
     @staticmethod
     def _numbered_list(lst):
         numbered = []
-        i = 1
+        i = 0
         for elem in lst:
             numbered.append('{{{}}}{}'.format(i, elem))
             i = i + 1
@@ -132,7 +132,7 @@ class OpenldapDatabase(object):
         self._module = module
         self._connection = self._connect()
         self._dn = None
-        self._attrs = {}
+        self._attrs = None
 
         result = self._connection.search_s(
             base = 'cn=config',
@@ -162,10 +162,9 @@ class OpenldapDatabase(object):
 
         return connection
 
-    def create(self):
+    def create(self, entry):
         """Create a database from scratch."""
 
-        entry = DatabaseEntry(self._module.params)
         modlist = ldap.modlist.addModlist(entry.attrs)
 
         if not self._module.check_mode:
@@ -173,10 +172,17 @@ class OpenldapDatabase(object):
 
         return True
 
-    def update(self):
+    def update(self, entry):
         """Update an existing database."""
 
-        pass
+        new_entry = copy.deepcopy(entry)
+        new_entry.set_name(self._attrs[DatabaseEntry.ATTR_DATABASE])
+        modlist = ldap.modlist.modifyModlist(self._attrs, new_entry.attrs)
+
+        if not self._module.check_mode:
+            self._connection.modify_s(self._dn, modlist)
+
+        return bool(modlist)
 
     def delete(self):
         """Delete a database and its files."""
@@ -256,10 +262,12 @@ def main():
     try:
         if module.params['state'] == 'absent':
             changed = db.delete()
-        elif db._dn:
-            changed = db.update()
         else:
-            changed = db.create()
+            entry = DatabaseEntry(module.params)
+            if db._dn:
+                changed = db.update(entry)
+            else:
+                changed = db.create(entry)
     except Exception as e:
         module.fail_json(
             msg = 'Database operation failed',
