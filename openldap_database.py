@@ -64,20 +64,11 @@ class DatabaseEntry(object):
             raise AttributeError('Unknown property ' + name)
 
     def set_backend(self, value):
-        self.attrs
-    def _create_entry(self):
-        backend = self._params['backend'].lower()
-        db_class = 'olc{}Config'.format(backend.capitalize())
+        self.attrs['olcDatabase'] = [value.lower()]
+        self.attrs['objectClass'] = ['olc{}Config'.format(value.capitalize())]
 
-        self.dn = '{}={},cn=config'.format(self.__class__.ATTR_DATABASE, backend)
-
-        # fill in required attributes
-
-        self.entry = {
-            'objectClass': [db_class],
-            self.__class__.ATTR_DATABASE: [backend],
-            self.__class__.ATTR_SUFFIX: [self._params['suffix']]
-        }
+        dn = '{}={},cn=config'.format('olcDatabase', value)
+        object.__setattr__(self, 'dn', dn)
 
     def _apply_verbatim_attrs(self):
         # copy attribute values if provided
