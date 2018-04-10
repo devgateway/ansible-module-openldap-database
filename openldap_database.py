@@ -242,7 +242,7 @@ def main():
     )
 
     if not HAS_LDAP:
-        module.fail_json(msg = 'Missing required \'ldap\' module (install python-ldap package).')
+        module.fail_json(msg = 'Missing required "ldap" module (install python-ldap package)')
 
     if module.params['state'] == 'present' and not module.params['directory']:
         module.fail_json(msg = 'The argument "directory" is required to create a database.')
