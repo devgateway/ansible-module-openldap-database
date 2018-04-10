@@ -58,19 +58,19 @@ class DatabaseEntry(object):
                 value = [value]
             self.attrs[attr_name] = value
         elif name in self.__class__._hooks:
-            method = getattr(self, 'set_' + name)
+            method = getattr(self, '_set_' + name)
             method(value)
         else:
             raise AttributeError('Unknown property ' + name)
 
-    def set_backend(self, value):
+    def _set_backend(self, value):
         self.attrs['olcDatabase'] = [value.lower()]
         self.attrs['objectClass'] = ['olc{}Config'.format(value.capitalize())]
 
         dn = '{}={},cn=config'.format('olcDatabase', value)
         object.__setattr__(self, 'dn', dn)
 
-    def _get_indexes(self):
+    def _set_indexes(self):
         indexes = map(
             lambda index_tuple: ' '.join(index_tuple),
             self._params['indexes']
@@ -78,7 +78,7 @@ class DatabaseEntry(object):
 
         return indexes
 
-    def _get_limits(self):
+    def _set_limits(self):
         def format_limit(limit_dict):
             for selector, limits in limit_dict.iteritems():
                 limit_elements = map(
