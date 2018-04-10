@@ -27,7 +27,6 @@ from ansible.module_utils._text import to_native
 
 class DatabaseEntry(object):
     _map = {
-        'access': 'olcAccess',
         'directory': 'olcDbDirectory',
         'read_only': 'olcReadOnly',
         'root_dn': 'olcRootDN',
@@ -36,7 +35,7 @@ class DatabaseEntry(object):
         'updateref': 'olcUpdateref'
     }
 
-    _hooks = ['backend', 'config', 'indexes', 'limits']
+    _hooks = ['access', 'backend', 'config', 'indexes', 'limits']
 
     ATTR_DATABASE = 'olcDatabase'
     ATTR_DBINDEX = 'olcDbIndex'
@@ -62,6 +61,19 @@ class DatabaseEntry(object):
             method(value)
         else:
             raise AttributeError('Unknown property ' + name)
+
+    def _set_access(self, access):
+        access_list = []
+        for rule in access:
+            what = rule['to']
+            by_who = map(
+                lambda who: 'by ' + who,
+                rule['by']
+            )
+            access_list.append(' '.join(['to', what] + by_who))
+
+        if access_list:
+            self.attrs['olcAccess'] = self._numbered_list(access_list)
 
     def _set_backend(self, value):
         self.attrs['olcDatabase'] = [value.lower()]
