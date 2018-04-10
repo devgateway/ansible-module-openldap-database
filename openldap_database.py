@@ -70,6 +70,13 @@ class DatabaseEntry(object):
         dn = '{}={},cn=config'.format('olcDatabase', value)
         object.__setattr__(self, 'dn', dn)
 
+    def _set_config(self, values):
+        other_options = map(
+            lambda val: val if type(val) is list else [val],
+            values
+        )
+        self.attrs.update(other_options)
+
     def _set_indexes(self):
         indexes = map(
             lambda index_tuple: ' '.join(index_tuple),
