@@ -77,13 +77,13 @@ class DatabaseEntry(object):
         )
         self.attrs.update(other_options)
 
-    def _set_indexes(self):
+    def _set_indexes(self, index_dict):
         indexes = map(
-            lambda index_tuple: ' '.join(index_tuple),
-            self._params['indexes']
+            lambda key_val_tuple: ' '.join(key_val_tuple),
+            index_dict.iteritems()
         )
-
-        return indexes
+        if indexes:
+            self.attrs['olcDbIndex'] = indexes
 
     def _set_limits(self):
         def format_limit(limit_dict):
