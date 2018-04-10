@@ -52,7 +52,9 @@ class DatabaseEntry(object):
 
         if name in self.__class__._map:
             attr_name = self.__class__._map[name]
-            if type(value) is not list:
+            if type(value) is bool:
+                value = ['TRUE'] if value else ['FALSE']
+            elif type(value) is not list:
                 value = [value]
             self.attrs[attr_name] = value
         elif name in self.__class__._hooks:
