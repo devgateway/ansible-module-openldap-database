@@ -87,10 +87,12 @@ class DatabaseEntry(object):
         object.__setattr__(self, 'dn', dn)
 
     def _set_config(self, values):
-        other_options = map(
-            lambda val: val if type(val) is list else [val],
-            values
-        )
+        other_options = {}
+        for key, value in values.iteritems():
+            if type(value) is dict:
+                other_options[key] = value
+            else:
+                other_options[key] = [str(value)]
         self.attrs.update(other_options)
 
     def set_name(self, name):
