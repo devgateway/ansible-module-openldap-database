@@ -28,6 +28,7 @@ from ansible.module_utils._text import to_native
 class DatabaseEntry(object):
     ATTR_SUFFIX = 'olcSuffix'
     ATTR_DBDIR = 'olcDbDirectory'
+    ATTR_DATABASE = 'olcDatabase'
 
     _map = {
         'directory': ATTR_DBDIR,
@@ -79,10 +80,10 @@ class DatabaseEntry(object):
             self.attrs['olcAccess'] = self._numbered_list(access_list)
 
     def _set_backend(self, value):
-        self.attrs['olcDatabase'] = [value.lower()]
+        self.attrs[self.__class__.ATTR_DATABASE] = [value.lower()]
         self.attrs['objectClass'] = ['olc{}Config'.format(value.capitalize())]
 
-        dn = '{}={},cn=config'.format('olcDatabase', value)
+        dn = '{}={},cn=config'.format(self.__class__.ATTR_DATABASE, value)
         object.__setattr__(self, 'dn', dn)
 
     def _set_config(self, values):
@@ -91,6 +92,9 @@ class DatabaseEntry(object):
             values
         )
         self.attrs.update(other_options)
+
+    def set_name(self, name):
+        self.attrs[self.__class__.ATTR_DATABASE] = name
 
     def _set_indexes(self, index_dict):
         indexes = map(
