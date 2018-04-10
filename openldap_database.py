@@ -70,20 +70,6 @@ class DatabaseEntry(object):
         dn = '{}={},cn=config'.format('olcDatabase', value)
         object.__setattr__(self, 'dn', dn)
 
-    def _apply_verbatim_attrs(self):
-        # copy attribute values if provided
-
-        verbatim_attrs = [
-        ]
-
-        for param, attr in verbatim_attrs.iteritems():
-            if type(self._params[param]) is bool or self._params[param]:
-                value = self._params[param]
-                if type(value) is dict:
-                    self.entry[attr] = value
-                else:
-                    self.entry[attr] = [value]
-
     def _get_indexes(self):
         indexes = map(
             lambda index_tuple: ' '.join(index_tuple),
