@@ -129,9 +129,6 @@ class DatabaseEntry(object):
                 other_options[key] = [str(value)]
         self._attrs.update(other_options)
 
-    def set_name(self, name):
-        self._attrs[self.__class__.ATTR_DATABASE] = name
-
     def _set_attr_indexes(self, indexes):
         index_strings = map(
             lambda key_val_tuple: ' '.join(key_val_tuple),
@@ -173,57 +170,54 @@ class DatabaseEntry(object):
 
         return True
 
-class OpenldapDatabase(object):
-    def update(self, entry):
+    def update(self):
         """Update an existing database."""
 
-        new_entry = copy.deepcopy(entry)
-        new_entry.set_name(self._old_attrs[DatabaseEntry.ATTR_DATABASE])
-        modlist = ldap.modlist.modifyModlist(self._old_attrs, new_entry._attrs)
+        modlist = ldap.modlist.modifyModlist(self._old_attrs, self._attrs)
 
         if not self._module.check_mode:
             self._connection.modify_s(self._dn, modlist)
 
         return bool(modlist)
 
+    def _get_config_path():
+        """Return a valid configuration LDIF path for a database."""
+
+        relative_path = self._dn.split(',')
+        relative_path.reverse()
+        relative_path[1] = relative_path[1] + '.ldif'
+
+        config_path = os.path.join('/etc/openldap/slapd.d', *relative_path) # TODO
+
+        if not os.path.exists(config_path):
+            config_path = None
+
+        return config_path
+
+    def _list_db_files():
+        """List regular files in DB directory."""
+
+        database_dir = self._old_attrs[DatabaseEntry.ATTR_DBDIR][0]
+        entries = map(
+            lambda path: os.path.join(database_dir, path),
+            os.listdir(database_dir)
+        )
+        # select only regular files
+        file_names = filter(
+            lambda path: stat.S_ISREG(os.stat(path).st_mode),
+            entries
+        )
+
+        return file_names
+
     def delete(self):
         """Delete a database and its files."""
-
-        def get_config_path():
-            """Return a valid configuration LDIF path for a database."""
-
-            relative_path = self._dn.split(',')
-            relative_path.reverse()
-            relative_path[1] = relative_path[1] + '.ldif'
-
-            config_path = os.path.join('/etc/openldap/slapd.d', *relative_path) # TODO
-
-            if not os.path.exists(config_path):
-                config_path = None
-
-            return config_path
-
-        def list_db_files():
-            """List regular files in DB directory."""
-
-            database_dir = self._old_attrs[DatabaseEntry.ATTR_DBDIR][0]
-            entries = map(
-                lambda path: os.path.join(database_dir, path),
-                os.listdir(database_dir)
-            )
-            # select only regular files
-            file_names = filter(
-                lambda path: stat.S_ISREG(os.stat(path).st_mode),
-                entries
-            )
-
-            return file_names
 
         changed = False
 
         if self._dn:
-            config_path = get_config_path()
-            file_names = list_db_files()
+            config_path = self._get_config_path()
+            file_names = self._list_db_files()
             changed = bool(config_path or file_names)
             if not self._module.check_mode:
                 if config_path:
