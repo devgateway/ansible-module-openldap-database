@@ -16,12 +16,71 @@ DOCUMENTATION = '''
 module: openldap_database
 short_description: Add or remove OpenLDAP databases
 description:
-    - Create, configure, or delete OpenLDAP databases.
-    - This module does not manage database content.
-    - Delete feature is not officially supported by OpenLDAP, thus provided "as is".
+  - Create, configure, or delete OpenLDAP databases.
+  - This module does not manage database content.
+  - Delete feature is not officially supported by OpenLDAP, thus provided "as is".
 version_added: null
 author: Development Gateway (@devgateway)
 options:
+  access:
+    description:
+      - A list of access rules. Each rule is a dictionary.
+    suboptions:
+      to:
+        description:
+          - Selector for entries and/or attributes to which ACL applies
+      by:
+        description:
+          - List of entities being granted access, and their access level (as a string).
+  backend:
+    description:
+     - Database type.
+     - You cannot change the backend after the database has been created.
+    default: mdb
+    choices: [bdb, hdb, mdb]
+  config:
+    description:
+      - Dictionary of other database-specific options, e.g. C(olcDbMaxSize).
+      - Keys must be valid attribute names, typically starting with "olc".
+      - Values must be either scalars (to be converted to strings), or lists of strings.
+  directory:
+    description:
+     - Directory where database files will be stored.
+     - This directory must exist and be writable by OpenLDAP daemon.
+     - Required if I(state=present).
+  indexes:
+    description:
+      - Dictionary of indexes; all other indexes will be deleted.
+      - Keys are comma-separated attribute names.
+      - Values are index types, e.g. C(pres) or C(eq).
+  limits:
+    description:
+      - List of dictionaries, with only one member each.
+      - The key is subject selector.
+      - The value is a dictionary of limit types and their values.
+  read_only:
+    description:
+      - Whether to put the database in read-only mode.
+    default: no
+  root_dn:
+    description:
+      - DN of the database admin which will not be subject to access control.
+  root_pw:
+    description:
+      - Password for the C(root_dn) account.
+  state:
+    description:
+      - Use C(present) to create or update the DB, or C(absent) to delete.
+      - Delete operation is not officially supported by OpenLDAP.
+    default: present
+    choices: [absent, present]
+  suffix:
+    description:
+      - Database suffix, e.g. C(dc=example,dc=org).
+    required: true
+  updateref:
+    description:
+      - URL to return to clients which submit update requests upon the replica.
 notes:
     - After deletion, you MUST restart OpenLDAP daemon, or it will keep serving ghost data.
 requirements:
