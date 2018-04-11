@@ -139,7 +139,7 @@ class OpenldapDatabase(object):
 
         other_options = {}
         for key, value in config.iteritems():
-            if type(value) is dict:
+            if type(value) is list:
                 other_options[key] = value
             else:
                 other_options[key] = [str(value)]
