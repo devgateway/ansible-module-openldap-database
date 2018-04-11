@@ -11,6 +11,17 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
                     'supported_by': 'community'}
 
+DOCUMENTATION = '''
+---
+module: openldap_database
+short_description: Add or remove OpenLDAP databases
+description:
+    - Create, configure, or delete OpenLDAP databases.
+    - This module does not manage database content.
+    - Delete feature is not officially supported by OpenLDAP, thus provided "as is".
+    - After deletion, you MUST restart OpenLDAP daemon, or it will keep serving ghost data.
+'''
+
 try:
     import ldap
     import ldap.modlist
