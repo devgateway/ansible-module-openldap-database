@@ -28,6 +28,63 @@ requirements:
     - python-ldap
 '''
 
+EXAMPLES = '''
+- name: Start OpenLDAP daemon
+  service:
+    name: slapd
+    state: started
+
+- name: Delete stock database
+  openldap_database:
+    suffix: dc=my-domain,dc=com
+    state: absent
+  register: stock_db
+
+- name: Restart OpenLDAP daemon
+  service:
+    name: slapd
+    state: restarted
+  when: stock_db.changed
+
+- name: Create database subdirectory
+  file:
+    path: /var/lib/ldap/example
+    state: directory
+    mode: 0700
+    owner: ldap
+    group: ldap
+
+- name: Create example database
+  openldap_database:
+    suffix: dc=example,dc=org
+    directory: /var/lib/ldap/example
+    indexes:
+      objectClass,gidNumber,uid,uidNumber,cn: eq
+      entryCSN: eq
+      entryUUID: eq
+    config:
+      olcDbMaxSize: 52428800
+    limits:
+      - dn.exact="cn=replication,ou=system,dc=example,dc=org":
+          size: unlimited
+          time: unlimited
+      - group/groupOfNames/member="cn=admins,ou=groups,dc=example,dc=org":
+          size: unlimited
+          time: unlimited
+    access:
+      - to: attrs=userPassword
+        by:
+          - anonymous auth
+          - dn="cn=replication,ou=system,dc=example,dc=org" read
+          - group.exact="cn=admins,ou=groups,dc=example,dc=org" write
+          - self write
+          - set="this/manager & user" write
+      - to: dn.subtree="ou=system,dc=example,dc=org"
+        by:
+          - self.level{1} read
+          - group.exact="cn=admins,ou=groups,dc=example,dc=org" write
+'''
+
 try:
     import ldap
     import ldap.modlist
