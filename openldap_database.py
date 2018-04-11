@@ -72,8 +72,10 @@ class OpenldapDatabase(object):
     def _connect(self):
         """Connect to slapd thru a socket using EXTERNAL auth."""
 
+        # Slapd can only be managed over a local socket
         connection = ldap.initialize('ldapi:///')
         try:
+            # bind as Ansible user (default: root)
             connection.sasl_interactive_bind_s('', ldap.sasl.external())
         except ldap.LDAPError as e:
             self._module.fail_json(
@@ -87,20 +89,25 @@ class OpenldapDatabase(object):
     def _set_attribute(self, name, value):
         """Set an entry attribute by module param name."""
 
+        # ignore uninitialized values
         if not value and type(value) is not bool:
             return
 
         if name in self.__class__._map:
+            # values are taken (almost) literally
             attr_name = self.__class__._map[name]
             if type(value) is bool:
+                # the schema requires an uppercase string
                 value = ['TRUE'] if value else ['FALSE']
             elif type(value) is not list:
                 value = [value]
             self._attrs[attr_name] = value
         elif name in self.__class__._hooks:
+            # values must be processed first
             method = getattr(self, '_set_attr_' + name)
             method(value)
         elif name == 'state':
+            # ignore module param
             pass
         else:
             raise AttributeError('Unknown property: {}'.format(name))
@@ -108,6 +115,7 @@ class OpenldapDatabase(object):
     def _set_attr_access(self, access):
         """Set olcAccess attribute."""
 
+        # interpolate the structure into a list of numbered strings
         access_list = []
         for rule in access:
             what = rule['to']
@@ -123,15 +131,16 @@ class OpenldapDatabase(object):
     def _set_attr_backend(self, backend):
         """Set objectClass and olcDatabase attributes, and the DN."""
 
+        # database config object class, e.g. olcBdbConfig
         self._attrs['objectClass'] = ['olc{}Config'.format(backend.capitalize())]
-        db_name = self.__class__.ATTR_DATABASE
+        db_name = self.__class__.ATTR_DATABASE # shortcut
 
         if self._exists:
             # keep the number assigned by Slapd
             self._attrs[db_name] = self._old_attrs[db_name]
         else:
-            self._attrs[db_name] = [backend.lower()]
             # format a new database name, and let Slapd assign it a number
+            self._attrs[db_name] = [backend.lower()]
             self._dn = '{}={},cn=config'.format(self.__class__.ATTR_DATABASE, backend)
 
     def _set_attr_config(self, config):
@@ -140,14 +149,17 @@ class OpenldapDatabase(object):
         other_options = {}
         for key, value in config.iteritems():
             if type(value) is list:
+                # if it's already a list, assume it's already properly formed
                 other_options[key] = value
             else:
+                # otherwise, coerce all values to strings, and wrap them into an array
                 other_options[key] = [str(value)]
         self._attrs.update(other_options)
 
     def _set_attr_indexes(self, indexes):
         """Set olcDbIndex attribute."""
 
+        # each string is a comma-separated attribute name list and an index type
         index_strings = map(
             lambda key_val_tuple: ' '.join(key_val_tuple),
             indexes.iteritems()
@@ -159,11 +171,15 @@ class OpenldapDatabase(object):
         """Set olcLimits attribute."""
 
         def format_limit(limit_dict):
+            """Format one limit string."""
+
+            # each limit is a key=value pair, e.g. time.hard=unlimited
             for selector, limits in limit_dict.iteritems():
                 limit_keyvals = map(
                     lambda elem: '='.join(elem),
                     limits.iteritems()
                 )
+                # to the selector (who), append all its limits
                 return ' '.join([selector] + limit_keyvals)
 
         if limits:
@@ -186,12 +202,16 @@ class OpenldapDatabase(object):
         """Create or update a database."""
 
         if self._exists:
+            # database exists, but we might need to modify it
             ldap_function = self._connection.modify_s
             modlist = ldap.modlist.modifyModlist(self._old_attrs, self._attrs)
+            # if any changes prepared
             changed = bool(modlist)
         else:
+            # database missing altogether, create it from scratch
             ldap_function = self._connection.add_s
             modlist = ldap.modlist.addModlist(self._attrs)
+            # creating will always change things
             changed = True
 
         if not self._module.check_mode:
@@ -202,12 +222,14 @@ class OpenldapDatabase(object):
     def _get_config_path(self):
         """Return a valid configuration LDIF path for a database."""
 
+        # config file for 'olcDatabase{1}mdb,cn=config' is at 'cn=config/olcDatabase{1}mdb.ldif'
         relative_path = self._dn.split(',')
         relative_path.reverse()
         relative_path[1] = relative_path[1] + '.ldif'
 
         config_path = os.path.join('/etc/openldap/slapd.d', *relative_path) # TODO
 
+        # the config file might already have been deleted
         if not os.path.exists(config_path):
             config_path = None
 
@@ -216,11 +238,13 @@ class OpenldapDatabase(object):
     def _list_db_files(self):
         """List regular files in DB directory."""
 
+        # list files/dirs immediately in the dir, but not in subdirs
         database_dir = self._old_attrs[self.__class__.ATTR_DBDIR][0]
         entries = map(
             lambda path: os.path.join(database_dir, path),
             os.listdir(database_dir)
         )
+
         # select only regular files
         file_names = filter(
             lambda path: stat.S_ISREG(os.stat(path).st_mode),
@@ -231,6 +255,8 @@ class OpenldapDatabase(object):
 
     def ensure_absent(self):
         """Delete a database and its files."""
+
+        # the whole operation is hackish, as deletion is not officially supported
 
         changed = False
 
@@ -246,6 +272,7 @@ class OpenldapDatabase(object):
             if not self._module.check_mode:
                 map(os.unlink, delete_queue)
 
+        # now the user MUST restart Slapd, or it will keep serving the DB entry from memory
         return changed
 
 def main():
@@ -267,9 +294,11 @@ def main():
         supports_check_mode = True
     )
 
+    # check if imports succeeded
     if not HAS_LDAP:
         module.fail_json(msg = 'Missing required "ldap" module (install python-ldap package)')
 
+    # check arguments sanity
     if module.params['state'] == 'present' and not module.params['directory']:
         module.fail_json(msg = 'The argument "directory" is required to create a database.')
 
