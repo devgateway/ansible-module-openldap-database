@@ -25,7 +25,7 @@ import traceback, os, stat, copy
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
 
-class DatabaseEntry(object):
+class OpenldapDatabase(object):
     ATTR_SUFFIX = 'olcSuffix'
     ATTR_DBDIR = 'olcDbDirectory'
     ATTR_DATABASE = 'olcDatabase'
@@ -44,21 +44,21 @@ class DatabaseEntry(object):
     def __init__(self, module):
         self._module = module
 
+        # get current attribute values from LDAP (if present)
+        self._connection = self._connect()
+        (self._dn, self._old_attrs) = self._find_database(module.params['suffix'])
+
         # set desired attribute values from module parameters
         self._attrs = {}
 
         for name, value in module.params.iteritems():
             self._set_attribute(name, value)
 
-        # get current attribute values from LDAP (if present)
-        self._connection = self._connect()
-        (self._dn, self._old_attrs) = self._find_database(module.params['suffix'])
-
     def _find_database(self, suffix):
         search_results = self._connection.search_s(
             base = 'cn=config',
             scope = ldap.SCOPE_ONELEVEL,
-            filterstr = '({}={})'.format(DatabaseEntry.ATTR_SUFFIX, suffix)
+            filterstr = '({}={})'.format(self.__class__.ATTR_SUFFIX, suffix)
         )
         for database in search_results:
             return database
@@ -160,27 +160,24 @@ class DatabaseEntry(object):
 
         return numbered
 
-    def create(self):
-        """Create a database from scratch."""
+    def ensure_present(self):
+        """Create or update a database."""
 
-        modlist = ldap.modlist.addModlist(self._attrs)
-
-        if not self._module.check_mode:
-            self._connection.add_s(self._dn, modlist)
-
-        return True
-
-    def update(self):
-        """Update an existing database."""
-
-        modlist = ldap.modlist.modifyModlist(self._old_attrs, self._attrs)
+        if self._dn:
+            ldap_function = self._connection.add_s
+            modlist = ldap.modlist.addModlist(self._attrs)
+            changed = True
+        else:
+            ldap_function = self._connection.modify_s
+            modlist = ldap.modlist.modifyModlist(self._old_attrs, self._attrs)
+            changed = bool(modlist)
 
         if not self._module.check_mode:
-            self._connection.modify_s(self._dn, modlist)
+            ldap_function(self._dn, modlist)
 
-        return bool(modlist)
+        return changed
 
-    def _get_config_path():
+    def _get_config_path(self):
         """Return a valid configuration LDIF path for a database."""
 
         relative_path = self._dn.split(',')
@@ -194,10 +191,10 @@ class DatabaseEntry(object):
 
         return config_path
 
-    def _list_db_files():
+    def _list_db_files(self):
         """List regular files in DB directory."""
 
-        database_dir = self._old_attrs[DatabaseEntry.ATTR_DBDIR][0]
+        database_dir = self._old_attrs[self.__class__.ATTR_DBDIR][0]
         entries = map(
             lambda path: os.path.join(database_dir, path),
             os.listdir(database_dir)
@@ -210,7 +207,7 @@ class DatabaseEntry(object):
 
         return file_names
 
-    def delete(self):
+    def ensure_absent(self):
         """Delete a database and its files."""
 
         changed = False
@@ -253,17 +250,13 @@ def main():
     if module.params['state'] == 'present' and not module.params['directory']:
         module.fail_json(msg = 'The argument "directory" is required to create a database.')
 
-    db = OpenldapDatabase(module)
-
     try:
+        db = OpenldapDatabase(module)
+
         if module.params['state'] == 'absent':
-            changed = db.delete()
+            changed = db.ensure_absent()
         else:
-            entry = DatabaseEntry(module.params)
-            if db._dn:
-                changed = db.update(entry)
-            else:
-                changed = db.create(entry)
+            changed = db.ensure_present()
     except Exception as e:
         module.fail_json(
             msg = 'Database operation failed',
