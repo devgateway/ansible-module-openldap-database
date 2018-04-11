@@ -56,6 +56,8 @@ class OpenldapDatabase(object):
             self._set_attribute(name, value)
 
     def _find_database(self, suffix):
+        """Find the DB DN and entry in LDAP."""
+
         search_results = self._connection.search_s(
             base = 'cn=config',
             scope = ldap.SCOPE_ONELEVEL,
@@ -83,6 +85,8 @@ class OpenldapDatabase(object):
         return connection
 
     def _set_attribute(self, name, value):
+        """Set an entry attribute by module param name."""
+
         if not value and type(value) is not bool:
             return
 
@@ -102,6 +106,8 @@ class OpenldapDatabase(object):
             raise AttributeError('Unknown property: {}'.format(name))
 
     def _set_attr_access(self, access):
+        """Set olcAccess attribute."""
+
         access_list = []
         for rule in access:
             what = rule['to']
@@ -115,6 +121,8 @@ class OpenldapDatabase(object):
             self._attrs['olcAccess'] = self._numbered_list(access_list)
 
     def _set_attr_backend(self, backend):
+        """Set objectClass and olcDatabase attributes, and the DN."""
+
         self._attrs['objectClass'] = ['olc{}Config'.format(backend.capitalize())]
         db_name = self.__class__.ATTR_DATABASE
 
@@ -127,6 +135,8 @@ class OpenldapDatabase(object):
             self._dn = '{}={},cn=config'.format(self.__class__.ATTR_DATABASE, backend)
 
     def _set_attr_config(self, config):
+        """Set miscellaneous DB attributes."""
+
         other_options = {}
         for key, value in config.iteritems():
             if type(value) is dict:
@@ -136,6 +146,8 @@ class OpenldapDatabase(object):
         self._attrs.update(other_options)
 
     def _set_attr_indexes(self, indexes):
+        """Set olcDbIndex attribute."""
+
         index_strings = map(
             lambda key_val_tuple: ' '.join(key_val_tuple),
             indexes.iteritems()
@@ -144,6 +156,8 @@ class OpenldapDatabase(object):
             self._attrs['olcDbIndex'] = index_strings
 
     def _set_attr_limits(self, limits):
+        """Set olcLimits attribute."""
+
         def format_limit(limit_dict):
             for selector, limits in limit_dict.iteritems():
                 limit_keyvals = map(
@@ -158,6 +172,8 @@ class OpenldapDatabase(object):
 
     @staticmethod
     def _numbered_list(lst):
+        """Insert Slapd-style numbering in the list."""
+
         numbered = []
         i = 0
         for elem in lst:
