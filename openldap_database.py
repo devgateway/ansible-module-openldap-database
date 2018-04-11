@@ -42,12 +42,12 @@ class DatabaseEntry(object):
     _hooks = ['access', 'backend', 'config', 'indexes', 'limits']
 
     def __init__(self, params):
-        object.__setattr__(self, 'attrs', {})
+        self.attrs = {}
 
         for name, value in params.iteritems():
-            self.__setattr__(name, value)
+            self._set_attribute(name, value)
 
-    def __setattr__(self, name, value):
+    def _set_attribute(self, name, value):
         if not value and type(value) is not bool:
             return
 
@@ -83,8 +83,7 @@ class DatabaseEntry(object):
         self.attrs[self.__class__.ATTR_DATABASE] = [value.lower()]
         self.attrs['objectClass'] = ['olc{}Config'.format(value.capitalize())]
 
-        dn = '{}={},cn=config'.format(self.__class__.ATTR_DATABASE, value)
-        object.__setattr__(self, 'dn', dn)
+        self.dn = '{}={},cn=config'.format(self.__class__.ATTR_DATABASE, value)
 
     def _set_config(self, values):
         other_options = {}
