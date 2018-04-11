@@ -59,14 +59,14 @@ class DatabaseEntry(object):
                 value = [value]
             self.attrs[attr_name] = value
         elif name in self.__class__._hooks:
-            method = getattr(self, '_set_' + name)
+            method = getattr(self, '_set_attr_' + name)
             method(value)
         elif name == 'state':
             pass
         else:
             raise AttributeError('Unknown property: {}'.format(name))
 
-    def _set_access(self, access):
+    def _set_attr_access(self, access):
         access_list = []
         for rule in access:
             what = rule['to']
@@ -79,15 +79,15 @@ class DatabaseEntry(object):
         if access_list:
             self.attrs['olcAccess'] = self._numbered_list(access_list)
 
-    def _set_backend(self, value):
-        self.attrs[self.__class__.ATTR_DATABASE] = [value.lower()]
-        self.attrs['objectClass'] = ['olc{}Config'.format(value.capitalize())]
+    def _set_attr_backend(self, backend):
+        self.attrs[self.__class__.ATTR_DATABASE] = [backend.lower()]
+        self.attrs['objectClass'] = ['olc{}Config'.format(backend.capitalize())]
 
-        self.dn = '{}={},cn=config'.format(self.__class__.ATTR_DATABASE, value)
+        self.dn = '{}={},cn=config'.format(self.__class__.ATTR_DATABASE, backend)
 
-    def _set_config(self, values):
+    def _set_attr_config(self, config):
         other_options = {}
-        for key, value in values.iteritems():
+        for key, value in config.iteritems():
             if type(value) is dict:
                 other_options[key] = value
             else:
@@ -97,15 +97,15 @@ class DatabaseEntry(object):
     def set_name(self, name):
         self.attrs[self.__class__.ATTR_DATABASE] = name
 
-    def _set_indexes(self, index_dict):
-        indexes = map(
+    def _set_attr_indexes(self, indexes):
+        index_strings = map(
             lambda key_val_tuple: ' '.join(key_val_tuple),
-            index_dict.iteritems()
+            indexes.iteritems()
         )
-        if indexes:
-            self.attrs['olcDbIndex'] = indexes
+        if index_strings:
+            self.attrs['olcDbIndex'] = index_strings
 
-    def _set_limits(self, limits):
+    def _set_attr_limits(self, limits):
         def format_limit(limit_dict):
             for selector, limits in limit_dict.iteritems():
                 limit_keyvals = map(
