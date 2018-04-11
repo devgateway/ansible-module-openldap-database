@@ -42,7 +42,7 @@ class DatabaseEntry(object):
     _hooks = ['access', 'backend', 'config', 'indexes', 'limits']
 
     def __init__(self, params):
-        self.attrs = {}
+        self._attrs = {}
 
         for name, value in params.iteritems():
             self._set_attribute(name, value)
@@ -57,7 +57,7 @@ class DatabaseEntry(object):
                 value = ['TRUE'] if value else ['FALSE']
             elif type(value) is not list:
                 value = [value]
-            self.attrs[attr_name] = value
+            self._attrs[attr_name] = value
         elif name in self.__class__._hooks:
             method = getattr(self, '_set_attr_' + name)
             method(value)
@@ -77,11 +77,11 @@ class DatabaseEntry(object):
             access_list.append(' '.join(['to', what] + by_who))
 
         if access_list:
-            self.attrs['olcAccess'] = self._numbered_list(access_list)
+            self._attrs['olcAccess'] = self._numbered_list(access_list)
 
     def _set_attr_backend(self, backend):
-        self.attrs[self.__class__.ATTR_DATABASE] = [backend.lower()]
-        self.attrs['objectClass'] = ['olc{}Config'.format(backend.capitalize())]
+        self._attrs[self.__class__.ATTR_DATABASE] = [backend.lower()]
+        self._attrs['objectClass'] = ['olc{}Config'.format(backend.capitalize())]
 
         self.dn = '{}={},cn=config'.format(self.__class__.ATTR_DATABASE, backend)
 
@@ -92,10 +92,10 @@ class DatabaseEntry(object):
                 other_options[key] = value
             else:
                 other_options[key] = [str(value)]
-        self.attrs.update(other_options)
+        self._attrs.update(other_options)
 
     def set_name(self, name):
-        self.attrs[self.__class__.ATTR_DATABASE] = name
+        self._attrs[self.__class__.ATTR_DATABASE] = name
 
     def _set_attr_indexes(self, indexes):
         index_strings = map(
@@ -103,7 +103,7 @@ class DatabaseEntry(object):
             indexes.iteritems()
         )
         if index_strings:
-            self.attrs['olcDbIndex'] = index_strings
+            self._attrs['olcDbIndex'] = index_strings
 
     def _set_attr_limits(self, limits):
         def format_limit(limit_dict):
@@ -116,7 +116,7 @@ class DatabaseEntry(object):
 
         if limits:
             limit_strings = map(format_limit, limits)
-            self.attrs['olcLimits'] = self._numbered_list(limit_strings)
+            self._attrs['olcLimits'] = self._numbered_list(limit_strings)
 
     @staticmethod
     def _numbered_list(lst):
@@ -133,7 +133,7 @@ class OpenldapDatabase(object):
         self._module = module
         self._connection = self._connect()
         self._dn = None
-        self._attrs = None
+        self._old_attrs = None
 
         result = self._connection.search_s(
             base = 'cn=config',
@@ -145,7 +145,7 @@ class OpenldapDatabase(object):
         )
         for dn, attrs in result:
             self._dn = dn
-            self._attrs = attrs
+            self._old_attrs = attrs
             break
 
     def _connect(self):
@@ -166,7 +166,7 @@ class OpenldapDatabase(object):
     def create(self, entry):
         """Create a database from scratch."""
 
-        modlist = ldap.modlist.addModlist(entry.attrs)
+        modlist = ldap.modlist.addModlist(entry._attrs)
 
         if not self._module.check_mode:
             self._connection.add_s(entry.dn, modlist)
@@ -177,8 +177,8 @@ class OpenldapDatabase(object):
         """Update an existing database."""
 
         new_entry = copy.deepcopy(entry)
-        new_entry.set_name(self._attrs[DatabaseEntry.ATTR_DATABASE])
-        modlist = ldap.modlist.modifyModlist(self._attrs, new_entry.attrs)
+        new_entry.set_name(self._old_attrs[DatabaseEntry.ATTR_DATABASE])
+        modlist = ldap.modlist.modifyModlist(self._old_attrs, new_entry._attrs)
 
         if not self._module.check_mode:
             self._connection.modify_s(self._dn, modlist)
@@ -205,7 +205,7 @@ class OpenldapDatabase(object):
         def list_db_files():
             """List regular files in DB directory."""
 
-            database_dir = self._attrs[DatabaseEntry.ATTR_DBDIR][0]
+            database_dir = self._old_attrs[DatabaseEntry.ATTR_DBDIR][0]
             entries = map(
                 lambda path: os.path.join(database_dir, path),
                 os.listdir(database_dir)
