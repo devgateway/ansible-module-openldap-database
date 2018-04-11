@@ -47,6 +47,7 @@ class OpenldapDatabase(object):
         # get current attribute values from LDAP (if present)
         self._connection = self._connect()
         (self._dn, self._old_attrs) = self._find_database(module.params['suffix'])
+        self._exists = bool(self._dn)
 
         # set desired attribute values from module parameters
         self._attrs = {}
@@ -114,10 +115,15 @@ class OpenldapDatabase(object):
             self._attrs['olcAccess'] = self._numbered_list(access_list)
 
     def _set_attr_backend(self, backend):
-        self._attrs[self.__class__.ATTR_DATABASE] = [backend.lower()]
         self._attrs['objectClass'] = ['olc{}Config'.format(backend.capitalize())]
+        db_name = self.__class__.ATTR_DATABASE
 
-        if not self._dn:
+        if self._exists:
+            # keep the number assigned by Slapd
+            self._attrs[db_name] = self._old_attrs[db_name]
+        else:
+            self._attrs[db_name] = [backend.lower()]
+            # format a new database name, and let Slapd assign it a number
             self._dn = '{}={},cn=config'.format(self.__class__.ATTR_DATABASE, backend)
 
     def _set_attr_config(self, config):
@@ -163,14 +169,14 @@ class OpenldapDatabase(object):
     def ensure_present(self):
         """Create or update a database."""
 
-        if self._dn:
-            ldap_function = self._connection.add_s
-            modlist = ldap.modlist.addModlist(self._attrs)
-            changed = True
-        else:
+        if self._exists:
             ldap_function = self._connection.modify_s
             modlist = ldap.modlist.modifyModlist(self._old_attrs, self._attrs)
             changed = bool(modlist)
+        else:
+            ldap_function = self._connection.add_s
+            modlist = ldap.modlist.addModlist(self._attrs)
+            changed = True
 
         if not self._module.check_mode:
             ldap_function(self._dn, modlist)
@@ -212,7 +218,7 @@ class OpenldapDatabase(object):
 
         changed = False
 
-        if self._dn:
+        if self._exists:
             config_path = self._get_config_path()
             file_names = self._list_db_files()
             changed = bool(config_path or file_names)
