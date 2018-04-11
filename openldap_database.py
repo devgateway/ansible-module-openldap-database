@@ -235,14 +235,16 @@ class OpenldapDatabase(object):
         changed = False
 
         if self._exists:
-            config_path = self._get_config_path()
-            file_names = self._list_db_files()
-            changed = bool(config_path or file_names)
-            if not self._module.check_mode:
-                if config_path:
-                    os.unlink(config_path)
+            delete_queue = self._list_db_files()
 
-                map(os.unlink, file_names)
+            config_path = self._get_config_path()
+            if config_path:
+                delete_queue.append(config_path)
+
+            changed = bool(delete_queue)
+
+            if not self._module.check_mode:
+                map(os.unlink, delete_queue)
 
         return changed
 
