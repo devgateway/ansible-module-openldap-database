@@ -19,7 +19,13 @@ description:
     - Create, configure, or delete OpenLDAP databases.
     - This module does not manage database content.
     - Delete feature is not officially supported by OpenLDAP, thus provided "as is".
+version_added: null
+author: Development Gateway (@devgateway)
+options:
+notes:
     - After deletion, you MUST restart OpenLDAP daemon, or it will keep serving ghost data.
+requirements:
+    - python-ldap
 '''
 
 try:
