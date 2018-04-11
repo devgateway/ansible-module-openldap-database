@@ -20,7 +20,7 @@ try:
 except ImportError:
     HAS_LDAP = False
 
-import traceback, os, stat, copy
+import traceback, os, stat
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
@@ -226,8 +226,7 @@ class OpenldapDatabase(object):
                 if config_path:
                     os.unlink(config_path)
 
-                for path in file_names:
-                    os.unlink(path)
+                map(os.unlink, file_names)
 
         return changed
 
