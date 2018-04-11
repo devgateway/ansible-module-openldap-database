@@ -117,7 +117,8 @@ class DatabaseEntry(object):
         self._attrs[self.__class__.ATTR_DATABASE] = [backend.lower()]
         self._attrs['objectClass'] = ['olc{}Config'.format(backend.capitalize())]
 
-        self.dn = '{}={},cn=config'.format(self.__class__.ATTR_DATABASE, backend)
+        if not self._dn:
+            self._dn = '{}={},cn=config'.format(self.__class__.ATTR_DATABASE, backend)
 
     def _set_attr_config(self, config):
         other_options = {}
@@ -162,17 +163,17 @@ class DatabaseEntry(object):
 
         return numbered
 
-class OpenldapDatabase(object):
-    def create(self, entry):
+    def create(self):
         """Create a database from scratch."""
 
-        modlist = ldap.modlist.addModlist(entry._attrs)
+        modlist = ldap.modlist.addModlist(self._attrs)
 
         if not self._module.check_mode:
-            self._connection.add_s(entry.dn, modlist)
+            self._connection.add_s(self._dn, modlist)
 
         return True
 
+class OpenldapDatabase(object):
     def update(self, entry):
         """Update an existing database."""
 
