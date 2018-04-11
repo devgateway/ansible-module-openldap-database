@@ -118,6 +118,8 @@ EXAMPLES = '''
   openldap_database:
     suffix: dc=example,dc=org
     directory: /var/lib/ldap/example
+    root_dn: cn=admin,dc=example,dc=org
+    root_pw: hunter2
     indexes:
       objectClass,gidNumber,uid,uidNumber,cn: eq
       entryCSN: eq
@@ -420,7 +422,7 @@ def main():
             'limits': dict(default = [], type = 'list'),
             'read_only': dict(default = False, type = 'bool'),
             'root_dn': dict(),
-            'root_pw': dict(),
+            'root_pw': dict(no_log = True),
             'state': dict(default = 'present', choices = ['present', 'absent']),
             'suffix': dict(required = True),
             'updateref': dict(default = None)
