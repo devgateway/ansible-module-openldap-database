@@ -41,11 +41,45 @@ class DatabaseEntry(object):
 
     _hooks = ['access', 'backend', 'config', 'indexes', 'limits']
 
-    def __init__(self, params):
+    def __init__(self, module):
+        self._module = module
+
+        # set desired attribute values from module parameters
         self._attrs = {}
 
-        for name, value in params.iteritems():
+        for name, value in module.params.iteritems():
             self._set_attribute(name, value)
+
+        # get current attribute values from LDAP (if present)
+        self._connection = self._connect()
+        (self._dn, self._old_attrs) = self._find_database(module.params['suffix'])
+
+    def _find_database(self, suffix):
+        search_results = self._connection.search_s(
+            base = 'cn=config',
+            scope = ldap.SCOPE_ONELEVEL,
+            filterstr = '({}={})'.format(DatabaseEntry.ATTR_SUFFIX, suffix)
+        )
+        for database in search_results:
+            return database
+
+        # if not found
+        return (None, {})
+
+    def _connect(self):
+        """Connect to slapd thru a socket using EXTERNAL auth."""
+
+        connection = ldap.initialize('ldapi:///')
+        try:
+            connection.sasl_interactive_bind_s('', ldap.sasl.external())
+        except ldap.LDAPError as e:
+            self._module.fail_json(
+                msg = 'Can\'t bind to local socket',
+                details = to_native(e),
+                exception = traceback.format_exc()
+            )
+
+        return connection
 
     def _set_attribute(self, name, value):
         if not value and type(value) is not bool:
@@ -129,40 +163,6 @@ class DatabaseEntry(object):
         return numbered
 
 class OpenldapDatabase(object):
-    def __init__(self, module):
-        self._module = module
-        self._connection = self._connect()
-        self._dn = None
-        self._old_attrs = None
-
-        result = self._connection.search_s(
-            base = 'cn=config',
-            scope = ldap.SCOPE_ONELEVEL,
-            filterstr = '({}={})'.format(
-                DatabaseEntry.ATTR_SUFFIX,
-                self._module.params['suffix']
-            )
-        )
-        for dn, attrs in result:
-            self._dn = dn
-            self._old_attrs = attrs
-            break
-
-    def _connect(self):
-        """Connect to slapd thru a socket using EXTERNAL auth."""
-
-        connection = ldap.initialize('ldapi:///')
-        try:
-            connection.sasl_interactive_bind_s('', ldap.sasl.external())
-        except ldap.LDAPError as e:
-            self._module.fail_json(
-                msg = 'Can\'t bind to local socket',
-                details = to_native(e),
-                exception = traceback.format_exc()
-            )
-
-        return connection
-
     def create(self, entry):
         """Create a database from scratch."""
 
