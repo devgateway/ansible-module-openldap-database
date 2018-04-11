@@ -19,6 +19,7 @@ description:
   - Create, configure, or delete OpenLDAP databases.
   - This module does not manage database content.
   - Delete feature is not officially supported by OpenLDAP, thus provided "as is".
+  - Check mode is fully supported.
 version_added: null
 author: Development Gateway (@devgateway)
 options:
