@@ -387,14 +387,32 @@ class OpenldapDatabase(object):
         (stdin, stderr) = slaptest.communicate()
 
         base_name = 'cn=config.ldif'
-        end = stderr.find('/' + base_name)
-        if end == -1:
-            raise RuntimeError('{} not found in slaptest output'.format(base_name))
-        start = stderr.rfind('"', 0, end)
-        if start == -1:
-            raise RuntimeError('Unable to parse slaptest output')
+        try:
+            end = stderr.find('/' + base_name)
+            if end == -1:
+                raise RuntimeError('{} not found in slaptest output'.format(base_name))
+            start = stderr.rfind('"', 0, end)
+            if start == -1:
+                raise RuntimeError('unable to parse slaptest output')
 
-        return stderr[start + 1:end]
+            config_dir = stderr[start + 1:end]
+        except RuntimeError as e:
+            config_dir = None
+            predefined_dirs = [
+                '/etc/openldap/slapd.d',
+                '/etc/ldap/slapd.d'
+            ]
+            for directory in predefined_dirs:
+                if os.path.isdir(directory):
+                    config_dir = directory
+                    break
+
+            if config_dir is None:
+                msg = 'Unable to guess slapd.d directory. Also, {}. Looked in: {}'.format(
+                    e.msg,
+                    ', '.join(predefined_dirs)
+                )
+                raise RuntimeError(msg)
 
     def _get_config_path(self):
         """Return a valid configuration LDIF path for a database."""
