@@ -323,6 +323,18 @@ class OpenldapDatabase(object):
             self._attrs['olcLimits'] = self._numbered_list(limit_strings)
 
     @staticmethod
+    def _format_dict(dct):
+        """Format dict as 'key1=val1 key2=val2' string."""
+
+        # convert values to strings, and form 'key=value' pairs
+        keyval_pairs = map(
+            lambda keyval: '='.join(map(str, keyval))
+            dct.iteritems()
+        )
+
+        return ' '.join(keyval_pairs)
+
+    @staticmethod
     def _numbered_list(lst):
         """Insert Slapd-style numbering in the list."""
 
