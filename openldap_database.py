@@ -79,11 +79,15 @@ options:
     description:
       - Database suffix, e.g. C(dc=example,dc=org).
     required: true
+  syncrepl:
+    description:
+      - Dictionary of syncrepl/olcSyncrepl parameters
   updateref:
     description:
       - URL to return to clients which submit update requests upon the replica.
 notes:
     - After deletion, you MUST restart OpenLDAP daemon, or it will keep serving ghost data.
+    - For additional info, see L(OpenLDAP Admin's Guide, http://www.openldap.org/doc/admin24/).
 requirements:
     - python-ldap
 '''
@@ -175,7 +179,7 @@ class OpenldapDatabase(object):
         'updateref': 'olcUpdateref'
     }
 
-    _hooks = ['access', 'backend', 'config', 'indexes', 'limits']
+    _hooks = ['access', 'backend', 'config', 'indexes', 'limits', 'syncrepl']
 
     def __init__(self, module):
         self._module = module
@@ -319,6 +323,12 @@ class OpenldapDatabase(object):
             all_limits = map(format_limit, limits)
             self._attrs['olcLimits'] = self._numbered_list(all_limits)
 
+    def _set_attr_syncrepl(self, syncrepl):
+        """Set olcSyncrepl attribute."""
+
+        if syncrepl:
+            self._attrs['olcSyncrepl'] = self._format_dict(syncrepl)
+
     @staticmethod
     def _format_dict(dct):
         """Format dict as 'key1=val1 key2=val2' string."""
@@ -433,6 +443,7 @@ def main():
             'root_dn': dict(),
             'root_pw': dict(no_log = True),
             'state': dict(default = 'present', choices = ['present', 'absent']),
+            'syncrepl': dict(default = {}, type = 'dict'),
             'suffix': dict(required = True),
             'updateref': dict(default = None)
         },
