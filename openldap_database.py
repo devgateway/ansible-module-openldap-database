@@ -166,7 +166,7 @@ try:
 except ImportError:
     HAS_LDAP = False
 
-import traceback, os, stat
+import traceback, os, stat, subprocess
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils._text import to_native
@@ -381,6 +381,21 @@ class OpenldapDatabase(object):
 
         return changed
 
+    @staticmethod
+    def _get_config_dir():
+        slaptest = subprocess.Popen(['slaptest', '-uvd', 'Trace'], stderr = subprocess.PIPE)
+        (stdin, stderr) = slaptest.communicate()
+
+        base_name = 'cn=config.ldif'
+        end = stderr.find('/' + base_name)
+        if end == -1:
+            raise RuntimeError('{} not found in slaptest output'.format(base_name))
+        start = stderr.rfind('"', 0, end)
+        if start == -1:
+            raise RuntimeError('Unable to parse slaptest output')
+
+        return stderr[start + 1:end]
+
     def _get_config_path(self):
         """Return a valid configuration LDIF path for a database."""
 
@@ -389,7 +404,8 @@ class OpenldapDatabase(object):
         relative_path.reverse()
         relative_path[1] = relative_path[1] + '.ldif'
 
-        config_path = os.path.join('/etc/openldap/slapd.d', *relative_path) # TODO
+        config_dir = self._get_config_dir()
+        config_path = os.path.join(config_dir, *relative_path)
 
         # the config file might already have been deleted
         if not os.path.exists(config_path):
