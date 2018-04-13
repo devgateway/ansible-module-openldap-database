@@ -81,7 +81,7 @@ options:
     required: true
   syncrepl:
     description:
-      - Dictionary of syncrepl/olcSyncrepl parameters
+      - List of dictionaries of syncrepl/olcSyncrepl parameters
   updateref:
     description:
       - URL to return to clients which submit update requests upon the replica.
@@ -327,7 +327,8 @@ class OpenldapDatabase(object):
         """Set olcSyncrepl attribute."""
 
         if syncrepl:
-            self._attrs['olcSyncrepl'] = self._format_dict(syncrepl)
+            syncrepl_strings = map(self._format_dict, syncrepl)
+            self._attrs['olcSyncrepl'] = self._numbered_list(syncrepl_strings)
 
     @staticmethod
     def _format_dict(dct):
@@ -443,7 +444,7 @@ def main():
             'root_dn': dict(),
             'root_pw': dict(no_log = True),
             'state': dict(default = 'present', choices = ['present', 'absent']),
-            'syncrepl': dict(default = {}, type = 'dict'),
+            'syncrepl': dict(default = [], type = 'list'),
             'suffix': dict(required = True),
             'updateref': dict(default = None)
         },
