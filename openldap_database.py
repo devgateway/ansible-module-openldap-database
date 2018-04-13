@@ -306,20 +306,12 @@ class OpenldapDatabase(object):
     def _set_attr_limits(self, limits):
         """Set olcLimits attribute."""
 
-        def format_limit(limit_dict):
-            """Format one limit string."""
-
-            # each limit is a key=value pair, e.g. time.hard=unlimited
-            for selector, limits in limit_dict.iteritems():
-                limit_keyvals = map(
-                    lambda elem: '='.join(elem),
-                    limits.iteritems()
-                )
-                # to the selector (who), append all its limits
-                return ' '.join([selector] + limit_keyvals)
-
         if limits:
-            limit_strings = map(format_limit, limits)
+            limit_strings = map(
+                # to the selector (who), append all its limits
+                lambda kv: kv[0] + ' ' + self._format_dict(kv[1])
+                limits.iteritems()
+            )
             self._attrs['olcLimits'] = self._numbered_list(limit_strings)
 
     @staticmethod
