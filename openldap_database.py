@@ -325,7 +325,7 @@ class OpenldapDatabase(object):
 
         # convert values to strings, and form 'key=value' pairs
         keyval_pairs = map(
-            lambda keyval: '='.join(map(str, keyval))
+            lambda keyval: '='.join(map(str, keyval)),
             dct.iteritems()
         )
 
