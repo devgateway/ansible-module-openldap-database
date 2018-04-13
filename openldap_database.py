@@ -137,6 +137,8 @@ EXAMPLES = '''
       - group/groupOfNames/member="cn=admins,ou=groups,dc=example,dc=org":
           size: unlimited
           time: unlimited
+      - "*":
+          size: 200
     access:
       - to: attrs=userPassword
         by:
@@ -149,6 +151,10 @@ EXAMPLES = '''
         by:
           - self.level{1} read
           - group.exact="cn=admins,ou=groups,dc=example,dc=org" write
+    syncrepl:
+      - rid: 42
+        provider: ldap://master-ldap.example.org
+        searchbase: dc=example,dc=org
 '''
 
 try:
