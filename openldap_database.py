@@ -29,14 +29,14 @@ options:
     suboptions:
       to:
         description:
-          - Selector for entries and/or attributes to which ACL applies
+          - Selector for entries and/or attributes to which ACL applies.
       by:
         description:
           - List of entities being granted access, and their access level (as a string).
   backend:
     description:
-     - Database type.
-     - You cannot change the backend after the database has been created.
+      - Database type.
+      - You cannot change the backend after the database has been created.
     default: mdb
     choices: [bdb, hdb, mdb]
   config:
@@ -46,9 +46,9 @@ options:
       - Values must be either scalars (to be converted to strings), or lists of strings.
   directory:
     description:
-     - Directory where database files will be stored.
-     - This directory must exist and be writable by OpenLDAP daemon.
-     - Required if I(state=present).
+      - Directory where database files will be stored.
+      - This directory must exist and be writable by OpenLDAP daemon.
+      - Required if I(state=present).
   indexes:
     description:
       - Dictionary of indexes; all other indexes will be deleted.
@@ -86,10 +86,10 @@ options:
     description:
       - URL to return to clients which submit update requests upon the replica.
 notes:
-    - After deletion, you MUST restart OpenLDAP daemon, or it will keep serving ghost data.
-    - For additional info, see L(OpenLDAP Admin's Guide, http://www.openldap.org/doc/admin24/).
+  - After deletion, you MUST restart OpenLDAP daemon, or it will keep serving ghost data.
+  - For additional info, see L(OpenLDAP Admin's Guide, http://www.openldap.org/doc/admin24/).
 requirements:
-    - python-ldap
+  - python-ldap
 '''
 
 EXAMPLES = '''
