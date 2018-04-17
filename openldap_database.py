@@ -414,6 +414,8 @@ class OpenldapDatabase(object):
                 )
                 raise RuntimeError(msg)
 
+        return config_dir
+
     def _get_config_path(self):
         """Return a valid configuration LDIF path for a database."""
 
