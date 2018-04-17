@@ -247,8 +247,8 @@ class OpenldapDatabase(object):
             # values must be processed first
             method = getattr(self, '_set_attr_' + name)
             method(value)
-        elif name == 'state':
-            # ignore module param
+        elif name in ['state', 'overlays']:
+            # ignore special parameters
             pass
         else:
             raise AttributeError('Unknown property: {}'.format(name))
@@ -494,6 +494,7 @@ def main():
             'directory': dict(),
             'indexes': dict(default = {}, type = 'dict'),
             'limits': dict(default = [], type = 'list'),
+            'overlays': dict(default = {}, type = 'dict'),
             'read_only': dict(default = False, type = 'bool'),
             'root_dn': dict(),
             'root_pw': dict(no_log = True),
