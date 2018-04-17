@@ -242,12 +242,7 @@ class OpenldapDatabase(object):
         if name in self.__class__._map:
             # values are taken (almost) literally
             attr_name = self.__class__._map[name]
-            if type(value) is bool:
-                # the schema requires an uppercase string
-                value = ['TRUE'] if value else ['FALSE']
-            elif type(value) is not list:
-                value = [value]
-            self._attrs[attr_name] = value
+            self._attrs[attr_name] = self._format_value(value)
         elif name in self.__class__._hooks:
             # values must be processed first
             method = getattr(self, '_set_attr_' + name)
@@ -335,6 +330,23 @@ class OpenldapDatabase(object):
         if syncrepl:
             syncrepl_strings = map(self._format_dict, syncrepl)
             self._attrs['olcSyncrepl'] = self._numbered_list(syncrepl_strings)
+
+    @staticmethod
+    def _format_value(value):
+        """Convert value to array."""
+
+        type_ = type(value)
+        if type_ is bool:
+            # format boolean as an uppercase string
+            result = ['TRUE'] if value else ['FALSE']
+        elif type_ is dict:
+            result = [self._format_dict(value)]
+        elif type_ is not list:
+            result = [value]
+        else:
+            result = value
+
+        return result
 
     @staticmethod
     def _format_dict(dct):
